@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hotel Interval BST</title>
+<link rel="stylesheet" href="https://pyscript.net/releases/2024.11.1/core.css">
+<script type="module"  src="https://pyscript.net/releases/2024.11.1/core.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; background: #1e1e2e; color: #cdd6f4; min-height: 100vh; }
+
+header { padding: 14px 20px; background: #181825; border-bottom: 1px solid #313244; }
+header h1 { font-size: 1.1rem; }
+header p  { font-size: .78rem; color: #6c7086; margin-top: 2px; }
+
+/* controls bar */
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; padding: 12px 20px; background: #181825; border-bottom: 1px solid #313244; }
+label { font-size: .8rem; color: #6c7086; display: flex; flex-direction: column; gap: 3px; }
+input, select { background: #313244; border: 1px solid #45475a; color: #cdd6f4; border-radius: 5px; padding: 4px 8px; font-size: .85rem; width: 66px; }
+button { padding: 5px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: .82rem; background: #89b4fa; color: #1e1e2e; font-weight: 600; }
+button:hover { opacity: .85; }
+.btn-green  { background: #a6e3a1; }
+.btn-orange { background: #fab387; }
+.btn-red    { background: #f38ba8; }
+#msg { font-size: .82rem; padding: 4px 10px; border-radius: 5px; align-self: center; display: none; }
+#msg.ok  { display: block; background: #a6e3a133; color: #a6e3a1; }
+#msg.err { display: block; background: #f38ba833; color: #f38ba8; }
+
+/* workspace — scrollable horizontal strip of tree cards */
+#workspace {
+  display: flex; gap: 16px; padding: 16px 20px;
+  overflow-x: auto; min-height: 220px; align-items: flex-start;
+}
+.tree-card {
+  background: #181825; border: 1px solid #313244; border-radius: 8px;
+  min-width: 220px; flex-shrink: 0; overflow: hidden;
+  transition: border-color .2s, box-shadow .2s; cursor: pointer;
+}
+.tree-card:hover  { border-color: #89b4fa; }
+.tree-card.active { border-color: #cba6f7; box-shadow: 0 0 0 2px #cba6f733; min-width: 360px; }
+.card-title { font-size: .78rem; font-weight: 700; padding: 6px 10px; background: #11111b; }
+.card-body  { padding: 8px; overflow-x: auto; }
+
+/* info panel */
+#info { padding: 14px 20px; border-top: 1px solid #313244; font-size: .85rem; min-height: 80px; }
+#info h3 { font-size: .88rem; margin-bottom: 8px; color: #89b4fa; }
+#info table { border-collapse: collapse; width: 100%; font-size: .82rem; }
+#info td, #info th { padding: 4px 10px; border-bottom: 1px solid #313244; text-align: left; }
+#info th { color: #6c7086; font-weight: normal; }
+.hit { color: #a6e3a1; font-weight: 600; }
+
+/* loading */
+#loading { position: fixed; inset: 0; background: #1e1e2e; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 10px; font-size: .9rem; color: #6c7086; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="width:32px;height:32px;border:3px solid #313244;border-top-color:#89b4fa;border-radius:50%;animation:spin .7s linear infinite"></div>
+  Loading Python…
+  <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</div>
+
+<div id="app" style="display:none">
+
+  <header>
+    <h1>Hotel Interval BST Visualizer</h1>
+    <p>click a tree card to expand it</p>
+  </header>
+
+  <div class="controls">
+    <label>Room    <select id="inp-room"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+    <label>In      <input  type="number" id="inp-ci" value="5"  min="1" max="29"></label>
+    <label>Out     <input  type="number" id="inp-co" value="10" min="2" max="30"></label>
+    <button class="btn-green"  id="btn-add">Add</button>
+    <label>Query day <input type="number" id="inp-day" value="7" min="1" max="30"></label>
+    <button id="btn-query">Query</button>
+    <label>Suggest from <input type="number" id="inp-sday" value="8" min="1" max="29"></label>
+    <label>Nights      <input type="number" id="inp-nights" value="3" min="1" max="14"></label>
+    <button class="btn-orange" id="btn-suggest">Suggest</button>
+    <button id="btn-demo">Demo</button>
+    <button class="btn-red" id="btn-reset">Reset</button>
+    <span id="msg"></span>
+  </div>
+
+  <div id="workspace">
+    <div class="tree-card" id="card-1"><div class="card-title" style="color:#89b4fa">Room 1</div><div class="card-body" id="svg-1"></div></div>
+    <div class="tree-card" id="card-2"><div class="card-title" style="color:#a6e3a1">Room 2</div><div class="card-body" id="svg-2"></div></div>
+    <div class="tree-card" id="card-3"><div class="card-title" style="color:#fab387">Room 3</div><div class="card-body" id="svg-3"></div></div>
+    <div class="tree-card" id="card-4"><div class="card-title" style="color:#cba6f7">Room 4</div><div class="card-body" id="svg-4"></div></div>
+    <div class="tree-card" id="card-single"><div class="card-title" style="color:#f9e2af">All rooms (single BST)</div><div class="card-body" id="svg-single"></div></div>
+  </div>
+
+  <div id="info"></div>
+
+</div>
+
+<script type="py">
+from pyscript import when, document
+
+NUM_ROOMS, DAYS = 4, 30
+STROKE = {1:'#89b4fa', 2:'#a6e3a1', 3:'#fab387', 4:'#cba6f7'}
+FILL   = {1:'#89b4fa22', 2:'#a6e3a122', 3:'#fab38722', 4:'#cba6f722'}
+
+class Node:
+    def __init__(self, ci, co, room, bid):
+        self.check_in, self.check_out = ci, co
+        self.room, self.bid = room, bid
+        self.max_right = co
+        self.left = self.right = None
+        self.height = 1
+
+def h(n):  return n.height    if n else 0
+def mr(n): return n.max_right if n else 0
+def fix(n):
+    n.height    = 1 + max(h(n.left), h(n.right))
+    n.max_right = max(n.check_out, mr(n.left), mr(n.right))
+
+def rot_r(z):
+    y = z.left; z.left = y.right; y.right = z; fix(z); fix(y); return y
+def rot_l(z):
+    y = z.right; z.right = y.left; y.left = z; fix(z); fix(y); return y
+
+def balance(n):
+    fix(n)
+    bf = h(n.left) - h(n.right)
+    if bf > 1:
+        if h(n.left.left) < h(n.left.right): n.left = rot_l(n.left)
+        return rot_r(n)
+    if bf < -1:
+        if h(n.right.right) < h(n.right.left): n.right = rot_r(n.right)
+        return rot_l(n)
+    return n
+
+def insert(n, ci, co, room, bid):
+    if n is None: return Node(ci, co, room, bid)
+    if ci <= n.check_in: n.left  = insert(n.left,  ci, co, room, bid)
+    else:                n.right = insert(n.right, ci, co, room, bid)
+    return balance(n)
+
+def delete(n, ci, bid):
+    if n is None: return None
+    if   ci < n.check_in: n.left  = delete(n.left,  ci, bid)
+    elif ci > n.check_in: n.right = delete(n.right, ci, bid)
+    elif n.bid == bid:
+        if not n.left:  return n.right
+        if not n.right: return n.left
+        s = n.right
+        while s.left: s = s.left
+        n.check_in, n.check_out, n.room, n.bid = s.check_in, s.check_out, s.room, s.bid
+        n.right = delete(n.right, s.check_in, s.bid)
+    else:
+        n.left  = delete(n.left,  ci, bid)
+        n.right = delete(n.right, ci, bid)
+    return balance(n)
+
+def query(n, day, found, stats):
+    if n is None: return
+    stats[0] += 1
+    if n.max_right <= day: stats[1] += 1; return
+    query(n.left, day, found, stats)
+    if n.check_in <= day:
+        if day < n.check_out:
+            found.append({"room": n.room, "bid": n.bid,
+                          "check_in": n.check_in, "check_out": n.check_out})
+        query(n.right, day, found, stats)
+
+def overlaps(n, ci, co):
+    if n is None or n.max_right <= ci: return False
+    if n.check_in < co and ci < n.check_out: return True
+    return overlaps(n.left, ci, co) or overlaps(n.right, ci, co)
+
+def inorder(n, out):
+    if n is None: return
+    inorder(n.left, out); out.append((n.check_in, n.check_out)); inorder(n.right, out)
+
+def make_svg(root, day=None):
+    if root is None:
+        return '<svg width="120" height="44"><text x="60" y="28" text-anchor="middle" fill="#6c7086" font-size="12">(empty)</text></svg>'
+
+    ctr = [0]
+    def layout(n, d):
+        if n is None: return
+        layout(n.left, d + 1)
+        n._x = ctr[0]; ctr[0] += 1; n._y = d
+        layout(n.right, d + 1)
+    layout(root, 0)
+
+    nodes, edges = [], []
+    def collect(n):
+        if n is None: return
+        nodes.append(n)
+        if n.left:  edges.append((n, n.left))
+        if n.right: edges.append((n, n.right))
+        collect(n.left); collect(n.right)
+    collect(root)
+
+    NW, NH, HG, VG, PAD = 76, 50, 92, 76, 44
+    max_d = max(n._y for n in nodes)
+    W = ctr[0] * HG + PAD * 2
+    H = (max_d + 1) * VG + PAD * 2
+
+    def cx(n): return n._x * HG + PAD + HG // 2
+    def cy(n): return n._y * VG + PAD + NH // 2
+
+    parts = [f'<svg width="{W}" height="{H}" style="display:block">']
+
+    for p, c in edges:
+        parts.append(f'<line x1="{cx(p)}" y1="{cy(p)+NH//2}" x2="{cx(c)}" y2="{cy(c)-NH//2}" stroke="#45475a" stroke-width="2"/>')
+
+    for n in nodes:
+        x, y = cx(n) - NW // 2, cy(n) - NH // 2
+        covers = day is not None and n.check_in <= day < n.check_out
+        pruned = day is not None and n.max_right <= day
+        if covers:
+            fill, stroke, tc, mc = '#a6e3a133', '#a6e3a1', '#a6e3a1', '#a6e3a1'
+        elif pruned:
+            fill, stroke, tc, mc = '#11111b', '#45475a', '#45475a', '#45475a'
+        else:
+            fill   = FILL.get(n.room, '#313244')
+            stroke = STROKE.get(n.room, '#cdd6f4')
+            tc, mc = '#cdd6f4', '#fab387'
+
+        tip = f"[{n.check_in},{n.check_out})  mr={n.max_right}{'  PRUNED' if pruned else '  COVERS' if covers else ''}"
+        parts.append(
+            f'<rect x="{x}" y="{y}" width="{NW}" height="{NH}" rx="7"'
+            f' fill="{fill}" stroke="{stroke}" stroke-width="2" stroke-dasharray="{"5,3" if pruned else "none"}">'
+            f'<title>{tip}</title></rect>'
+            f'<text x="{cx(n)}" y="{y+16}" text-anchor="middle" font-size="11" font-weight="bold" fill="{tc}">[{n.check_in},{n.check_out})</text>'
+            f'<text x="{cx(n)}" y="{y+30}" text-anchor="middle" font-size="10" fill="{mc}">mr={n.max_right}</text>'
+            f'<text x="{cx(n)}" y="{y+44}" text-anchor="middle" font-size="9" fill="{stroke}">R{n.room}</text>'
+        )
+
+    parts.append('</svg>')
+    return ''.join(parts)
+
+class Hotel:
+    def __init__(self):
+        self.next_bid = 1
+        self.bookings = {}
+        self.rooms  = {r: None for r in range(1, NUM_ROOMS + 1)}
+        self.single = None
+
+    def add(self, ci, co, room):
+        if not (1 <= room <= NUM_ROOMS):       return None, "Invalid room"
+        if ci < 1 or co > DAYS or ci >= co:    return None, "Invalid dates"
+        if overlaps(self.rooms[room], ci, co): return None, f"Room {room} already booked"
+        bid = self.next_bid; self.next_bid += 1
+        self.rooms[room] = insert(self.rooms[room], ci, co, room, bid)
+        self.single      = insert(self.single,      ci, co, room, bid)
+        self.bookings[bid] = {"bid": bid, "check_in": ci, "check_out": co, "room": room}
+        return bid, None
+
+    def remove(self, bid):
+        if bid not in self.bookings: return
+        b = self.bookings.pop(bid)
+        self.rooms[b["room"]] = delete(self.rooms[b["room"]], b["check_in"], bid)
+        self.single           = delete(self.single,           b["check_in"], bid)
+
+    def suggest(self, desired, nights):
+        results = []
+        for room in range(1, NUM_ROOMS + 1):
+            if not overlaps(self.rooms[room], desired, desired + nights):
+                results.append((room, desired, desired + nights)); continue
+            booked = []; inorder(self.rooms[room], booked)
+            prev = 1
+            for s, e in booked:
+                if s - prev >= nights:
+                    results.append((room, prev, prev + nights)); break
+                prev = max(prev, e)
+        return results
+
+hotel = Hotel()
+queried_day = None
+
+def render_trees():
+    for r in range(1, NUM_ROOMS + 1):
+        document.getElementById(f"svg-{r}").innerHTML = make_svg(hotel.rooms[r], queried_day)
+    document.getElementById("svg-single").innerHTML = make_svg(hotel.single, queried_day)
+
+def show_msg(text, kind):
+    el = document.getElementById("msg")
+    el.textContent = text; el.className = kind
+
+def show_info(html):
+    document.getElementById("info").innerHTML = html
+
+@when("click", "#btn-add")
+def on_add(e):
+    ci   = int(document.getElementById("inp-ci").value)
+    co   = int(document.getElementById("inp-co").value)
+    room = int(document.getElementById("inp-room").value)
+    bid, err = hotel.add(ci, co, room)
+    if err: show_msg(err, "err"); return
+    global queried_day; queried_day = None
+    render_trees(); show_msg(f"#{ bid} added", "ok")
+    show_info(render_bookings())
+
+@when("click", "#btn-query")
+def on_query(e):
+    global queried_day
+    queried_day = int(document.getElementById("inp-day").value)
+    found, stats = [], [0, 0]
+    query(hotel.single, queried_day, found, stats)
+    render_trees()
+    hit_bids = {x["bid"] for x in found}
+    rows = "".join(
+        f'<tr><td class="{"hit" if b["bid"] in hit_bids else ""}">'
+        f'{"✓" if b["bid"] in hit_bids else ""}</td>'
+        f'<td style="color:{STROKE[b["room"]]}">Room {b["room"]}</td>'
+        f'<td>[{b["check_in"]}, {b["check_out"]})</td></tr>'
+        for b in hotel.bookings.values()
+    )
+    show_info(
+        f'<h3>Day {queried_day} — {len(found)} booking(s) found &nbsp;·&nbsp; '
+        f'visited <b>{stats[0]}</b> nodes, pruned by max_right: <b>{stats[1]}</b></h3>'
+        f'<table><thead><tr><th>Hit</th><th>Room</th><th>Interval</th></tr></thead>'
+        f'<tbody>{rows}</tbody></table>'
+    )
+
+@when("click", "#btn-suggest")
+def on_suggest(e):
+    desired = int(document.getElementById("inp-sday").value)
+    nights  = int(document.getElementById("inp-nights").value)
+    results = hotel.suggest(desired, nights)
+    if not results:
+        show_info("<p style='color:#6c7086'>No free gaps found.</p>"); return
+    items = " ".join(
+        f'<span style="padding:4px 10px;background:{STROKE[r]}22;border:1px solid {STROKE[r]};'
+        f'border-radius:5px;font-size:.82rem">Room {r}: days {s}–{en}</span>'
+        for r, s, en in results
+    )
+    show_info(f'<h3>Suggestions for {nights} nights from day {desired}</h3><div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">{items}</div>')
+
+@when("click", "#btn-demo")
+def on_demo(e):
+    global hotel, queried_day; hotel = Hotel(); queried_day = None
+    for ci, co, r in [(1,5,1),(8,13,1),(20,26,1),(3,8,2),(14,19,2),(5,11,3),(15,21,3),(2,6,4),(10,15,4),(18,23,4)]:
+        hotel.add(ci, co, r)
+    render_trees(); show_info(render_bookings()); show_msg("Demo loaded", "ok")
+
+@when("click", "#btn-reset")
+def on_reset(e):
+    global hotel, queried_day; hotel = Hotel(); queried_day = None
+    render_trees(); show_info(""); show_msg("Reset", "ok")
+
+for card_id in ["card-1","card-2","card-3","card-4","card-single"]:
+    @when("click", f"#{card_id}")
+    def on_card_click(e):
+        clicked = e.currentTarget.id
+        for cid in ["card-1","card-2","card-3","card-4","card-single"]:
+            card = document.getElementById(cid)
+            card.className = "tree-card active" if cid == clicked and "active" not in card.className else "tree-card"
+
+def render_bookings():
+    if not hotel.bookings: return "<p style='color:#6c7086'>No bookings yet.</p>"
+    rows = "".join(
+        f'<tr><td>#{b["bid"]}</td>'
+        f'<td style="color:{STROKE[b["room"]]}">Room {b["room"]}</td>'
+        f'<td>Day {b["check_in"]}</td><td>Day {b["check_out"]}</td>'
+        f'<td>{b["check_out"]-b["check_in"]}</td></tr>'
+        for b in sorted(hotel.bookings.values(), key=lambda b: (b["room"], b["check_in"]))
+    )
+    return (f'<h3>Bookings</h3><table><thead><tr><th>#</th><th>Room</th>'
+            f'<th>Check-in</th><th>Check-out</th><th>Nights</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table>')
+
+document.getElementById("loading").style.display = "none"
+document.getElementById("app").style.display = "block"
+render_trees()
+</script>
+
+</body>
+</html>
