@@ -79,6 +79,7 @@ def query(n, day, found, stats):
 def overlaps(n, ci, co):
     # check if any booking in subtree overlaps [ci, co) -> O(log n) with max_right pruning
     if n is None or n.max_right <= ci: return False  # whole subtree ends before ci
+    if n.check_in >= co: return overlaps(n.left, ci, co)
     if n.check_in < co and ci < n.check_out: return True  # two intervals overlap iff neither ends before the other starts
     return overlaps(n.left, ci, co) or overlaps(n.right, ci, co)
 
